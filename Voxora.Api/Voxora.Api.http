@@ -1,6 +1,15 @@
-@Voxora.Api_HostAddress = http://localhost:5286
+@host = https://localhost:7239
 
-GET {{Voxora.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+GET {{host}}/health/ready
 
 ###
+GET {{host}}/api/categories
+
+###
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "username": "admin", "password": "Voxora@123" }
+
+###
+GET {{host}}/api/auth/me

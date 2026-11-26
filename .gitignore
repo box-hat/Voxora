@@ -45,3 +45,12 @@ Thumbs.db
 
 # Local HTTPS dev certificates (dev.sh)
 /.certs
+
+# Deployment secrets
+.env
+
+# Frontend copied into the API for publishing
+/Voxora.Api/wwwroot
+
+# Project-local development database (scripts/dev.mjs)
+/.run

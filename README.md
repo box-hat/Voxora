@@ -1,59 +1,86 @@
-# Compostay
+# Voxora
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.1.4.
+Anonymous student concern system. Students submit concerns without an account and follow them with a tracking code (for example `VX-12345678`). Administrators sign in to review, answer and report on concerns.
 
-## Development server
+- **Frontend:** Angular (`src/`)
+- **API:** ASP.NET Core (`Voxora.Api/`), MySQL via Entity Framework Core
+- **Live updates:** SignalR (`/hubs/concerns`)
 
-To start a local development server, run:
+## Development
 
-```bash
-ng serve
-```
+You need Node.js 22.22+ (or 24.15+), the .NET 10 SDK, and MySQL 8 or MariaDB 10.6+.
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+1. Database: on Linux/macOS with MariaDB installed, nothing to do. `npm run dev` runs a private MariaDB in `.run/` on port 3308 and creates it from `database/schema.sql` on first start. Elsewhere (e.g. Windows), create the database yourself and set the connection string in `Voxora.Api/appsettings.Development.json`:
 
-## Code scaffolding
+   ```bash
+   mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS voxora_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+   mysql -u root -p voxora_db < database/schema.sql
+   ```
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+2. Optional, to avoid browser certificate warnings: install [mkcert](https://github.com/FiloSottile/mkcert) and run `mkcert -install` once.
 
-```bash
-ng generate component component-name
-```
+3. Start everything:
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+   ```bash
+   npm install
+   npm run dev        # https://localhost:4200
+   npm run dev:lan    # also reachable from phones/other PCs on your network
+   ```
 
-```bash
-ng generate --help
-```
+   Shortcuts: `./dev.sh` (Linux/macOS), `dev.cmd` (Windows).
 
-## Building
+In development an admin account `admin` / `Voxora@123` is created automatically if it doesn't exist. This only applies to development; production never uses it.
 
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+Add an admin or reset a password (it asks for the password):
 
 ```bash
-ng test
+npm run admin -- --username NAME [--full-name "Full Name"] [--email you@example.com]
 ```
 
-## Running end-to-end tests
+In production with Docker: `docker compose exec app dotnet Voxora.Api.dll create-admin --username NAME`.
 
-For end-to-end (e2e) testing, run:
+Run the frontend tests with `npm test -- --watch=false`.
+
+## Production
+
+### With Docker (recommended)
+
+You need a server with Docker and a domain name pointing at it, with ports 80 and 443 open.
 
 ```bash
-ng e2e
+cp .env.example .env      # fill in every value
+docker compose up -d --build
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+This starts:
 
-## Additional Resources
+- **db:** MySQL 8.4. On first start the schema and starter categories are loaded from `database/schema.sql`.
+- **app:** the API, which also serves the built Angular app.
+- **caddy:** HTTPS with a free, auto-renewing Let's Encrypt certificate for `DOMAIN`.
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+The first admin account is created from `ADMIN_USERNAME` / `ADMIN_PASSWORD` (at least 12 characters). Once you've signed in, remove `ADMIN_PASSWORD` from `.env`.
+
+Back up the `db-data` volume regularly. The `keys` volume holds the keys that encrypt admin sessions; if it's lost, admins just sign in again.
+
+### Without Docker
+
+1. Build the frontend: `npx ng build`. Copy `dist/compostay/browser/` to `Voxora.Api/wwwroot/`.
+2. Publish the API: `dotnet publish Voxora.Api -c Release -o publish`.
+3. Run `publish/Voxora.Api.dll` behind a reverse proxy that terminates HTTPS (nginx, Caddy, IIS), with these environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `ConnectionStrings__DefaultConnection` | MySQL connection string (required) |
+| `AdminBootstrap__Username`, `AdminBootstrap__Password` | Creates the first admin if missing |
+| `DataProtection__KeysPath` | Folder that keeps admin sessions valid across restarts |
+| `ReverseProxy__Enabled=true` | Trust `X-Forwarded-*` from your proxy. Only set this if the app is not reachable directly. |
+| `ASPNETCORE_HTTP_PORTS` | Port to listen on, e.g. `8080` |
+
+Health checks: `GET /health` (app is running) and `GET /health/ready` (database reachable too).
+
+## Security notes
+
+- Admin sessions are HttpOnly, Secure, SameSite=Strict cookies. Passwords are hashed with ASP.NET Core Identity's PBKDF2 hasher.
+- Only signed-in admins can list concerns, change them, or edit categories. Students can only submit concerns and look one up by its tracking code.
+- Per-IP limits: 5 login attempts per minute, 20 submissions per 10 minutes, 60 tracking lookups per minute.
+- Concern text is never written to the logs.

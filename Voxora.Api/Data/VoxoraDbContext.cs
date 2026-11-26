@@ -28,13 +28,15 @@ public class VoxoraDbContext : DbContext
             entity.HasKey(e => e.Id);
 
             entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.FullName).HasColumnName("full_name");
+            entity.Property(e => e.FullName).HasColumnName("full_name").HasMaxLength(150);
             entity.Property(e => e.Username).HasColumnName("username").HasMaxLength(100);
             entity.Property(e => e.Email).HasColumnName("email").HasMaxLength(254);
             entity.Property(e => e.PasswordHash).HasColumnName("password_hash").HasMaxLength(255);
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+
+            entity.HasIndex(e => e.Username).IsUnique();
         });
 
         // CATEGORIES TABLE
@@ -48,6 +50,8 @@ public class VoxoraDbContext : DbContext
             entity.Property(e => e.Description).HasColumnName("description").HasColumnType("text");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+
+            entity.HasIndex(e => e.Name).IsUnique();
         });
 
         // CONCERNS TABLE
@@ -68,9 +72,13 @@ public class VoxoraDbContext : DbContext
             entity.Property(e => e.SubmittedAt).HasColumnName("submitted_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
 
+            entity.HasIndex(e => e.TrackingCode).IsUnique();
+            entity.HasIndex(e => e.SubmittedAt);
+
             entity.HasOne<Category>()
                 .WithMany()
-                .HasForeignKey(e => e.CategoryId);
+                .HasForeignKey(e => e.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne<Admin>()
                 .WithMany()

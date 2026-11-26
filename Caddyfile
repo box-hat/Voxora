@@ -1,0 +1,6 @@
+# Caddy terminates HTTPS and gets a free Let's Encrypt certificate for DOMAIN
+# automatically (ports 80 and 443 must be reachable from the internet).
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:8080
+}

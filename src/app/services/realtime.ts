@@ -56,11 +56,30 @@ export class RealtimeService implements OnDestroy {
     );
 
     // Group membership is lost on reconnect, so re-join watched concerns.
-    this.connection.onreconnected(() => {
-      this.watchedCodes.forEach(code =>
-        this.connection.invoke('WatchConcern', code).catch(() => {})
-      );
-    });
+    this.connection.onreconnected(() => this.rejoinWatched());
+  }
+
+  /**
+   * Reconnect with the current credentials. Called after login/logout:
+   * the server decides on connect whether this is an admin connection.
+   */
+  async restart(): Promise<void> {
+    const wasActive =
+      this.startPromise !== null ||
+      this.connection.state !== HubConnectionState.Disconnected;
+
+    await this.startPromise?.catch(() => {});
+    await this.connection.stop();
+
+    if (wasActive) {
+      await this.connect().catch(() => {});
+    }
+  }
+
+  private rejoinWatched(): void {
+    this.watchedCodes.forEach(code =>
+      this.connection.invoke('WatchConcern', code).catch(() => {})
+    );
   }
 
   /** Start the connection (safe to call multiple times). */
@@ -71,8 +90,9 @@ export class RealtimeService implements OnDestroy {
 
     if (!this.startPromise) {
       this.startPromise = this.connection.start()
+        .then(() => this.rejoinWatched())
         .catch(error => {
-          console.error('SIGNALR CONNECTION ERROR:', error);
+          console.warn('Live updates unavailable:', error?.message ?? error);
           throw error;
         })
         .finally(() => {

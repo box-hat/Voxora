@@ -1,13 +1,15 @@
 
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import {
   AdminConcern,
   ConcernService,
   ReportConcern,
   ReportSummary
 } from '../../services/concern';
+import { AuthService } from '../../services/auth';
+import { getErrorMessage } from '../../utils/http-error';
 import { DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime } from 'rxjs';
@@ -21,6 +23,9 @@ import { RealtimeService } from '../../services/realtime';
   styleUrl: './reports.css'
 })
 export class Reports implements OnInit {
+
+  private auth = inject(AuthService);
+  private router = inject(Router);
   today = new Date();
 
   concerns: ReportConcern[] = [];
@@ -63,8 +68,7 @@ export class Reports implements OnInit {
         this.categoryStats = [];
         this.statusStats = [];
         this.isLoading = false;
-        this.loadError = error.error?.message || error.error ||
-          'Unable to load report data from the database.';
+        this.loadError = getErrorMessage(error, 'Unable to load report data.');
       }
     });
   }
@@ -176,7 +180,8 @@ export class Reports implements OnInit {
     window.print();
   }
 
+  // LOGOUT
   logout(): void {
-    window.location.href = '/admin-login';
+    this.auth.logout().subscribe(() => this.router.navigate(['/admin-login']));
   }
 }

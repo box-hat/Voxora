@@ -12,6 +12,7 @@ import {
   ConcernService,
   TrackedConcern
 } from '../../services/concern';
+import { getErrorMessage } from '../../utils/http-error';
 import { DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime } from 'rxjs';
@@ -86,7 +87,7 @@ export class TrackConcern implements OnInit {
         this.concern = data;
         this.cdr.detectChanges();
       },
-      error: error => console.error('LIVE REFRESH ERROR:', error)
+      error: () => { /* keep showing the last loaded data */ }
     });
   }
 
@@ -115,7 +116,6 @@ export class TrackConcern implements OnInit {
 
     this.cdr.detectChanges();
 
-    console.log('Searching Tracking Code:', code);
 
     this.concernService
       .getConcernByTrackingCode(code)
@@ -129,7 +129,6 @@ export class TrackConcern implements OnInit {
 
           this.setWatchedCode(data.trackingCode);
 
-          console.log('CONCERN FOUND:', data);
 
           // Update the page after receiving API response
           this.cdr.detectChanges();
@@ -139,7 +138,6 @@ export class TrackConcern implements OnInit {
 
           this.isSearching = false;
 
-          console.error('TRACKING ERROR:', error);
 
           if (error.status === 404) {
             this.concern = null;
@@ -148,11 +146,7 @@ export class TrackConcern implements OnInit {
           } else {
             this.searched = false;
 
-            alert(
-              error.error?.message ||
-              error.error ||
-              'Unable to track your concern. Please try again.'
-            );
+            alert(getErrorMessage(error, 'Unable to track your concern. Please try again.'));
           }
 
           this.cdr.detectChanges();
