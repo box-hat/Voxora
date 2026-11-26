@@ -13,6 +13,10 @@ import {
   ConcernService,
   AdminConcern
 } from '../../services/concern';
+import { DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { debounceTime } from 'rxjs';
+import { RealtimeService } from '../../services/realtime';
 
 @Component({
   selector: 'app-manage-concerns',
@@ -36,6 +40,9 @@ export class ManageConcerns implements OnInit {
   isLoading = false;
   isSaving = false;
 
+  private realtime = inject(RealtimeService);
+  private destroyRef = inject(DestroyRef);
+
   constructor(
     private concernService: ConcernService,
     private cdr: ChangeDetectorRef
@@ -43,6 +50,13 @@ export class ManageConcerns implements OnInit {
 
   ngOnInit(): void {
     this.loadConcerns();
+
+    // Refresh automatically when concerns change (SignalR)
+    this.realtime.concernsChanged$
+      .pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.loadConcerns());
+
+    this.realtime.connect().catch(() => {});
   }
 
   // LOAD ALL CONCERNS FROM DATABASE

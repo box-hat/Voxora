@@ -1,8 +1,10 @@
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using Voxora.Api.Data;
+using Voxora.Api.Hubs;
 using Voxora.Api.Models;
 
 namespace Voxora.Api.Controllers;
@@ -12,10 +14,39 @@ namespace Voxora.Api.Controllers;
 public class ConcernsController : ControllerBase
 {
     private readonly VoxoraDbContext _context;
+    private readonly IHubContext<ConcernsHub> _hub;
+    private readonly ILogger<ConcernsController> _logger;
 
-    public ConcernsController(VoxoraDbContext context)
+    public ConcernsController(
+        VoxoraDbContext context,
+        IHubContext<ConcernsHub> hub,
+        ILogger<ConcernsController> logger)
     {
         _context = context;
+        _hub = hub;
+        _logger = logger;
+    }
+
+    // Notify connected clients. A SignalR failure must never fail the request,
+    // since the database change has already been committed.
+    private async Task NotifyAsync(string trackingCode, string status)
+    {
+        try
+        {
+            var payload = new { trackingCode, status };
+
+            await _hub.Clients.All.SendAsync("ConcernsChanged", payload);
+
+            await _hub.Clients
+                .Group(ConcernsHub.GroupFor(trackingCode))
+                .SendAsync("ConcernUpdated", payload);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Failed to send SignalR notification for {TrackingCode}",
+                trackingCode);
+        }
     }
 
     // POST: api/concerns
@@ -96,6 +127,8 @@ public class ConcernsController : ControllerBase
             await _context.SaveChangesAsync();
 
             await transaction.CommitAsync();
+
+            await NotifyAsync(concern.TrackingCode, concern.Status);
 
             return Ok(new
             {
@@ -309,6 +342,8 @@ public class ConcernsController : ControllerBase
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+
+            await NotifyAsync(concern.TrackingCode, concern.Status);
 
             return Ok(new
             {

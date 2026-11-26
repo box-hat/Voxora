@@ -75,7 +75,7 @@ export interface UpdateConcernResponse {
 })
 export class ConcernService {
 
-  private apiUrl = 'https://localhost:7239/api/concerns';
+  private apiUrl = '/api/concerns';
   constructor(private http: HttpClient) {}
 
   // SUBMIT CONCERN

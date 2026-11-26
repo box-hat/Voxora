@@ -8,6 +8,10 @@ import {
   ReportConcern,
   ReportSummary
 } from '../../services/concern';
+import { DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { debounceTime } from 'rxjs';
+import { RealtimeService } from '../../services/realtime';
 
 @Component({
   selector: 'app-reports',
@@ -28,10 +32,20 @@ export class Reports implements OnInit {
 
   statusStats: { name: string; count: number; percentage: number; className: string }[] = [];
 
+  private realtime = inject(RealtimeService);
+  private destroyRef = inject(DestroyRef);
+
   constructor(private concernService: ConcernService) {}
 
   ngOnInit(): void {
     this.loadReports();
+
+    // Refresh automatically when concerns change (SignalR)
+    this.realtime.concernsChanged$
+      .pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.loadReports());
+
+    this.realtime.connect().catch(() => {});
   }
 
   loadReports(): void {

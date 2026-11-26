@@ -1,6 +1,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using Voxora.Api.Data;
+using Voxora.Api.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +10,9 @@ builder.Services.AddOpenApi();
 
 // Register API Controllers
 builder.Services.AddControllers();
+
+// SignalR (real-time concern updates)
+builder.Services.AddSignalR();
 
 // MySQL Database Connection
 var connectionString = builder.Configuration
@@ -33,10 +37,13 @@ builder.Services.AddCors(options =>
     "http://localhost:4200",
     "https://localhost:4200",
     "http://localhost:49609",
-    "http://10.0.250.173:4200"
+    "http://10.0.250.173:4200",
+    "https://10.0.250.173:4200"
 )
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            // Required by SignalR when the client connects cross-origin
+            .AllowCredentials();
     });
 });
 
@@ -55,6 +62,9 @@ app.UseHttpsRedirection();
 
 // Register Controllers
 app.MapControllers();
+
+// SignalR hub
+app.MapHub<ConcernsHub>(ConcernsHub.Path);
 
 // Test MySQL connection
 app.MapGet("/api/health/database", async (VoxoraDbContext db) =>

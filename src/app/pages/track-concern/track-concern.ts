@@ -12,6 +12,10 @@ import {
   ConcernService,
   TrackedConcern
 } from '../../services/concern';
+import { DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { debounceTime } from 'rxjs';
+import { RealtimeService } from '../../services/realtime';
 
 @Component({
   selector: 'app-track-concern',
@@ -28,6 +32,11 @@ export class TrackConcern implements OnInit {
   searched = false;
   isSearching = false;
 
+  private watchedCode = '';
+
+  private realtime = inject(RealtimeService);
+  private destroyRef = inject(DestroyRef);
+
   constructor(
     private route: ActivatedRoute,
     private concernService: ConcernService,
@@ -42,6 +51,42 @@ export class TrackConcern implements OnInit {
         this.trackingCode = code;
         this.searchConcern();
       }
+    });
+
+    // Live status updates for the concern being viewed (SignalR)
+    this.realtime.concernUpdated$
+      .pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
+      .subscribe(event => {
+        if (event.trackingCode === this.concern?.trackingCode) {
+          this.refreshConcern(event.trackingCode);
+        }
+      });
+
+    this.destroyRef.onDestroy(() => this.setWatchedCode(''));
+  }
+
+  private setWatchedCode(code: string): void {
+    if (code === this.watchedCode) return;
+
+    if (this.watchedCode) {
+      this.realtime.unwatchConcern(this.watchedCode);
+    }
+
+    this.watchedCode = code;
+
+    if (code) {
+      this.realtime.watchConcern(code);
+    }
+  }
+
+  // Re-fetch without clearing the page (used for live updates)
+  private refreshConcern(code: string): void {
+    this.concernService.getConcernByTrackingCode(code).subscribe({
+      next: data => {
+        this.concern = data;
+        this.cdr.detectChanges();
+      },
+      error: error => console.error('LIVE REFRESH ERROR:', error)
     });
   }
 
@@ -82,6 +127,8 @@ export class TrackConcern implements OnInit {
           this.isSearching = false;
           this.searched = true;
 
+          this.setWatchedCode(data.trackingCode);
+
           console.log('CONCERN FOUND:', data);
 
           // Update the page after receiving API response
@@ -96,6 +143,7 @@ export class TrackConcern implements OnInit {
 
           if (error.status === 404) {
             this.concern = null;
+            this.setWatchedCode('');
             this.searched = true;
           } else {
             this.searched = false;

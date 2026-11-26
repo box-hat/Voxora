@@ -14,7 +14,7 @@ export interface Category {
 })
 export class CategoryService {
 
-  private apiUrl = 'https://localhost:7239/api/categories';
+  private apiUrl = '/api/categories';
 
   constructor(private http: HttpClient) {}
 
