@@ -1,15 +1,29 @@
 import { TestBed } from '@angular/core/testing';
-import { Category } from './category';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
-describe('Category', () => {
-  let service: Category;
+import { CategoryService } from './category';
+
+describe('CategoryService', () => {
+  let service: CategoryService;
+  let http: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
-    service = TestBed.inject(Category);
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()]
+    });
+    service = TestBed.inject(CategoryService);
+    http = TestBed.inject(HttpTestingController);
   });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
+  afterEach(() => http.verify());
+
+  it('loads categories from the relative API URL', () => {
+    let names: string[] = [];
+    service.getCategories().subscribe(list => (names = list.map(c => c.name)));
+
+    http.expectOne('/api/categories').flush([{ id: 1, name: 'Academic', description: null }]);
+
+    expect(names).toEqual(['Academic']);
   });
 });

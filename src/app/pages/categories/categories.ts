@@ -1,9 +1,11 @@
-
+import { inject } from '@angular/core';
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { CategoryService } from '../../services/category';
+import { AuthService } from '../../services/auth';
+import { getErrorMessage } from '../../utils/http-error';
 
 interface ConcernCategory {
   id: number;
@@ -19,6 +21,9 @@ interface ConcernCategory {
   styleUrl: './categories.css'
 })
 export class Categories implements OnInit {
+
+  private auth = inject(AuthService);
+  private router = inject(Router);
 
   categories: ConcernCategory[] = [];
   searchTerm = '';
@@ -46,11 +51,9 @@ export class Categories implements OnInit {
 
   // LOAD CATEGORIES FROM MYSQL
   loadCategories(): void {
-    console.log('Loading categories from MySQL...');
 
     this.categoryService.getCategories().subscribe({
       next: (data) => {
-        console.log('Categories received:', data);
 
         this.categories = data.map(category => ({
           id: category.id,
@@ -58,14 +61,12 @@ export class Categories implements OnInit {
           description: category.description ?? ''
         }));
 
-        console.log('Total categories:', this.categories.length);
 
         this.cdr.detectChanges();
       },
 
       error: (error) => {
-        console.error('Failed to load categories:', error);
-        alert('Unable to load categories. Please check the API.');
+        alert('Unable to load categories. Please try again later.');
       }
     });
   }
@@ -127,7 +128,6 @@ export class Categories implements OnInit {
   // ADD OR UPDATE CATEGORY
   saveCategory(): void {
 
-    console.log('SAVE CATEGORY BUTTON CLICKED!');
 
     const name = this.formName.trim();
     const description = this.formDescription.trim();
@@ -160,7 +160,6 @@ export class Categories implements OnInit {
     // UPDATE CATEGORY
     if (this.isEditing && this.editingId !== null) {
 
-      console.log('Sending UPDATE request to API...');
 
       this.categoryService.updateCategory(
         this.editingId,
@@ -168,7 +167,6 @@ export class Categories implements OnInit {
       ).subscribe({
 
         next: (response) => {
-          console.log('UPDATE SUCCESS:', response);
 
           this.isSaving = false;
           this.showModal = false;
@@ -187,15 +185,10 @@ export class Categories implements OnInit {
         },
 
         error: (error) => {
-          console.error('UPDATE ERROR:', error);
 
           this.isSaving = false;
 
-          alert(
-            error.error?.message ||
-            error.error ||
-            'Failed to update category.'
-          );
+          alert(getErrorMessage(error, 'Failed to update category.'));
         }
 
       });
@@ -203,13 +196,10 @@ export class Categories implements OnInit {
     } else {
 
       // ADD NEW CATEGORY
-      console.log('Sending POST request to API...');
-      console.log('POST DATA:', categoryData);
 
       this.categoryService.addCategory(categoryData).subscribe({
 
         next: (response) => {
-          console.log('ADD SUCCESS:', response);
 
           this.isSaving = false;
           this.showModal = false;
@@ -223,15 +213,10 @@ export class Categories implements OnInit {
         },
 
         error: (error) => {
-          console.error('ADD ERROR:', error);
 
           this.isSaving = false;
 
-          alert(
-            error.error?.message ||
-            error.error ||
-            'Failed to add category.'
-          );
+          alert(getErrorMessage(error, 'Failed to add category.'));
         }
 
       });
@@ -248,12 +233,10 @@ export class Categories implements OnInit {
 
     if (!confirmed) return;
 
-    console.log('Deleting category:', category.id);
 
     this.categoryService.deleteCategory(category.id).subscribe({
 
       next: (response) => {
-        console.log('DELETE SUCCESS:', response);
 
         alert('Category deleted successfully!');
 
@@ -261,13 +244,8 @@ export class Categories implements OnInit {
       },
 
       error: (error) => {
-        console.error('DELETE ERROR:', error);
 
-        alert(
-          error.error?.message ||
-          error.error ||
-          'Failed to delete category.'
-        );
+        alert(getErrorMessage(error, 'Failed to delete category.'));
       }
 
     });
@@ -275,7 +253,7 @@ export class Categories implements OnInit {
 
   // LOGOUT
   logout(): void {
-    window.location.href = '/admin-login';
+    this.auth.logout().subscribe(() => this.router.navigate(['/admin-login']));
   }
 
 }

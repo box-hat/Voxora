@@ -1,0 +1,11 @@
+**/bin
+**/obj
+**/node_modules
+dist
+.angular
+.certs
+.git
+.vscode
+.env
+*.md
+build-check

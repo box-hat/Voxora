@@ -6,12 +6,18 @@ import {
 } from '@angular/core';
 
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import {
   ConcernService,
   AdminConcern
 } from '../../services/concern';
+import { AuthService } from '../../services/auth';
+import { getErrorMessage } from '../../utils/http-error';
+import { DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { debounceTime } from 'rxjs';
+import { RealtimeService } from '../../services/realtime';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -21,6 +27,9 @@ import {
   styleUrl: './admin-dashboard.css'
 })
 export class AdminDashboard implements OnInit {
+
+  private auth = inject(AuthService);
+  private router = inject(Router);
 
   concerns: AdminConcern[] = [];
 
@@ -38,6 +47,9 @@ export class AdminDashboard implements OnInit {
 
   isLoading = false;
 
+  private realtime = inject(RealtimeService);
+  private destroyRef = inject(DestroyRef);
+
   constructor(
     private concernService: ConcernService,
     private cdr: ChangeDetectorRef
@@ -45,6 +57,13 @@ export class AdminDashboard implements OnInit {
 
   ngOnInit(): void {
     this.loadConcerns();
+
+    // Refresh automatically when concerns change (SignalR)
+    this.realtime.concernsChanged$
+      .pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.loadConcerns());
+
+    this.realtime.connect().catch(() => {});
   }
 
   // LOAD CONCERNS FROM MYSQL DATABASE
@@ -62,7 +81,6 @@ export class AdminDashboard implements OnInit {
 
         this.isLoading = false;
 
-        console.log('DASHBOARD DATA LOADED:', data);
 
         this.cdr.detectChanges();
       },
@@ -71,13 +89,8 @@ export class AdminDashboard implements OnInit {
 
         this.isLoading = false;
 
-        console.error('DASHBOARD ERROR:', error);
 
-        alert(
-          error.error?.message ||
-          error.error ||
-          'Unable to load dashboard data.'
-        );
+        alert(getErrorMessage(error, 'Unable to load dashboard data.'));
 
         this.cdr.detectChanges();
       }
@@ -166,7 +179,6 @@ export class AdminDashboard implements OnInit {
 
   // LOGOUT
   logout(): void {
-
-    window.location.href = '/admin-login';
+    this.auth.logout().subscribe(() => this.router.navigate(['/admin-login']));
   }
 }

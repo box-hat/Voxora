@@ -1,8 +1,12 @@
-
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Cryptography;
+using Voxora.Api.Auth;
 using Voxora.Api.Data;
+using Voxora.Api.Hubs;
+using Voxora.Api.Infrastructure;
 using Voxora.Api.Models;
 
 namespace Voxora.Api.Controllers;
@@ -11,53 +15,57 @@ namespace Voxora.Api.Controllers;
 [Route("api/[controller]")]
 public class ConcernsController : ControllerBase
 {
-    private readonly VoxoraDbContext _context;
+    private const int SubjectMin = 5, SubjectMax = 100;
+    private const int DescriptionMin = 10, DescriptionMax = 2000;
+    private const int AdminResponseMax = 2000;
 
-    public ConcernsController(VoxoraDbContext context)
+    private readonly VoxoraDbContext _context;
+    private readonly IHubContext<ConcernsHub> _hub;
+    private readonly ILogger<ConcernsController> _logger;
+
+    public ConcernsController(
+        VoxoraDbContext context,
+        IHubContext<ConcernsHub> hub,
+        ILogger<ConcernsController> logger)
     {
         _context = context;
+        _hub = hub;
+        _logger = logger;
     }
 
+    // ---- Public (anonymous students) ----------------------------------------
+
     // POST: api/concerns
-    // SUBMIT CONCERN
     [HttpPost]
-    public async Task<IActionResult> SubmitConcern(
-        [FromBody] SubmitConcernRequest request)
+    [EnableRateLimiting(RateLimits.SubmitConcern)]
+    public async Task<IActionResult> SubmitConcern([FromBody] SubmitConcernRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Category))
-            return BadRequest("Please select a concern category.");
+        var categoryName = request.Category?.Trim() ?? string.Empty;
+        var subject = request.Subject?.Trim() ?? string.Empty;
+        var description = request.Description?.Trim() ?? string.Empty;
 
-        if (string.IsNullOrWhiteSpace(request.Subject))
-            return BadRequest("Subject is required.");
+        if (categoryName.Length == 0)
+            return Error("Please select a concern category.");
 
-        if (request.Subject.Trim().Length < 5 ||
-            request.Subject.Trim().Length > 100)
-            return BadRequest("Subject must be 5 to 100 characters.");
+        if (subject.Length is < SubjectMin or > SubjectMax)
+            return Error($"Subject must be {SubjectMin} to {SubjectMax} characters.");
 
-        if (string.IsNullOrWhiteSpace(request.Description))
-            return BadRequest("Description is required.");
-
-        if (request.Description.Trim().Length < 10 ||
-            request.Description.Trim().Length > 2000)
-            return BadRequest("Description must be 10 to 2000 characters.");
+        if (description.Length is < DescriptionMin or > DescriptionMax)
+            return Error($"Description must be {DescriptionMin} to {DescriptionMax} characters.");
 
         var category = await _context.Categories
-            .FirstOrDefaultAsync(c =>
-                c.Name == request.Category.Trim() &&
-                c.IsActive);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Name == categoryName && c.IsActive);
 
-        if (category == null)
-            return BadRequest("Selected category was not found.");
+        if (category is null)
+            return Error("Selected category was not found.");
 
         string trackingCode;
-
         do
         {
-            trackingCode = "VX-" +
-                RandomNumberGenerator.GetInt32(10000000, 100000000);
+            trackingCode = TrackingCode.Generate();
         }
-        while (await _context.Concerns.AnyAsync(
-            c => c.TrackingCode == trackingCode));
+        while (await _context.Concerns.AnyAsync(c => c.TrackingCode == trackingCode));
 
         var now = DateTime.UtcNow;
 
@@ -65,65 +73,107 @@ public class ConcernsController : ControllerBase
         {
             TrackingCode = trackingCode,
             CategoryId = category.Id,
-            Subject = request.Subject.Trim(),
-            Description = request.Description.Trim(),
-            Status = "Pending",
-            AdminResponse = null,
-            AssignedAdminId = null,
+            Subject = subject,
+            Description = description,
+            Status = ConcernStatus.Pending,
             IsAnonymous = true,
-            SubmittedAt = now,
-            UpdatedAt = null
+            SubmittedAt = now
         };
 
-        await using var transaction =
-            await _context.Database.BeginTransactionAsync();
-
-        try
+        // Disposing the transaction without committing rolls it back.
+        await using (var transaction = await _context.Database.BeginTransactionAsync())
         {
             _context.Concerns.Add(concern);
             await _context.SaveChangesAsync();
 
-            var history = new ConcernStatusHistory
+            _context.ConcernStatusHistories.Add(new ConcernStatusHistory
             {
                 ConcernId = concern.Id,
-                Status = "Pending",
+                Status = ConcernStatus.Pending,
                 Note = "Your concern has been successfully submitted.",
-                ChangedByAdminId = null,
                 ChangedAt = now
-            };
-
-            _context.ConcernStatusHistories.Add(history);
+            });
             await _context.SaveChangesAsync();
 
             await transaction.CommitAsync();
-
-            return Ok(new
-            {
-                message = "Concern submitted successfully.",
-                trackingCode = concern.TrackingCode,
-                status = concern.Status,
-                submittedAt = concern.SubmittedAt
-            });
         }
-        catch (Exception)
+
+        // Never log subject/description: concerns are anonymous and may be sensitive.
+        _logger.LogInformation("Concern {TrackingCode} submitted.", concern.TrackingCode);
+
+        await NotifyAsync(concern.TrackingCode, concern.Status);
+
+        return Ok(new
         {
-            await transaction.RollbackAsync();
-
-            return StatusCode(
-                500,
-                "Unable to save your concern. Please try again."
-            );
-        }
+            message = "Concern submitted successfully.",
+            trackingCode = concern.TrackingCode,
+            status = concern.Status,
+            submittedAt = concern.SubmittedAt
+        });
     }
 
+    // GET: api/concerns/{trackingCode}
+    [HttpGet("{trackingCode}")]
+    [EnableRateLimiting(RateLimits.TrackConcern)]
+    public async Task<IActionResult> GetConcernByTrackingCode(string trackingCode)
+    {
+        var code = TrackingCode.Normalize(trackingCode);
+
+        if (!TrackingCode.IsValid(code))
+            return Error("Tracking codes look like VX-12345678.");
+
+        var concern = await (
+            from c in _context.Concerns.AsNoTracking()
+            join category in _context.Categories.AsNoTracking()
+                on c.CategoryId equals category.Id into categories
+            from category in categories.DefaultIfEmpty()
+            where c.TrackingCode == code
+            select new
+            {
+                c.Id,
+                c.TrackingCode,
+                Category = category != null ? category.Name : "Unknown",
+                c.Subject,
+                c.Description,
+                c.SubmittedAt,
+                c.Status,
+                c.AdminResponse
+            }
+        ).FirstOrDefaultAsync();
+
+        if (concern is null)
+            return NotFound(new { message = "Concern not found." });
+
+        var history = await _context.ConcernStatusHistories
+            .AsNoTracking()
+            .Where(h => h.ConcernId == concern.Id)
+            .OrderBy(h => h.ChangedAt)
+            .Select(h => new { status = h.Status, date = h.ChangedAt, note = h.Note })
+            .ToListAsync();
+
+        return Ok(new
+        {
+            trackingCode = concern.TrackingCode,
+            category = concern.Category,
+            subject = concern.Subject,
+            description = concern.Description,
+            submittedAt = concern.SubmittedAt,
+            status = concern.Status,
+            adminResponse = concern.AdminResponse ?? string.Empty,
+            statusHistory = history
+        });
+    }
+
+    // ---- Admin only -----------------------------------------------------------
+
     // GET: api/concerns
-    // GET ALL CONCERNS FOR ADMIN
     [HttpGet]
+    [Authorize]
     public async Task<IActionResult> GetAllConcerns()
     {
         var concerns = await (
-            from concern in _context.Concerns
-            join category in _context.Categories
+            from concern in _context.Concerns.AsNoTracking()
+            join category in _context.Categories.AsNoTracking()
                 on concern.CategoryId equals category.Id
             orderby concern.SubmittedAt descending
             select new
@@ -134,7 +184,7 @@ public class ConcernsController : ControllerBase
                 description = concern.Description,
                 submittedAt = concern.SubmittedAt,
                 status = concern.Status,
-                adminResponse = concern.AdminResponse ?? ""
+                adminResponse = concern.AdminResponse ?? string.Empty
             }
         ).ToListAsync();
 
@@ -142,18 +192,14 @@ public class ConcernsController : ControllerBase
     }
 
     // GET: api/concerns/report-summary
-    // Lightweight data for the reports page: database aggregates and latest rows.
     [HttpGet("report-summary")]
+    [Authorize]
     public async Task<IActionResult> GetReportSummary()
     {
         var statusCounts = await _context.Concerns
             .AsNoTracking()
             .GroupBy(c => c.Status)
-            .Select(group => new
-            {
-                status = group.Key,
-                count = group.Count()
-            })
+            .Select(group => new { status = group.Key, count = group.Count() })
             .ToListAsync();
 
         var categoryCounts = await (
@@ -162,11 +208,7 @@ public class ConcernsController : ControllerBase
                 on concern.CategoryId equals category.Id
             group concern by category.Name into categoryGroup
             orderby categoryGroup.Count() descending
-            select new
-            {
-                name = categoryGroup.Key,
-                count = categoryGroup.Count()
-            }
+            select new { name = categoryGroup.Key, count = categoryGroup.Count() }
         ).ToListAsync();
 
         var recentConcerns = await (
@@ -182,40 +224,27 @@ public class ConcernsController : ControllerBase
                 submittedAt = concern.SubmittedAt,
                 status = concern.Status
             }
-        )
-        .Take(10)
-        .ToListAsync();
+        ).Take(10).ToListAsync();
 
-        return Ok(new
-        {
-            statusCounts,
-            categoryCounts,
-            recentConcerns
-        });
+        return Ok(new { statusCounts, categoryCounts, recentConcerns });
     }
 
     // GET: api/concerns/dashboard-summary
-    // ADMIN DASHBOARD SUMMARY
     [HttpGet("dashboard-summary")]
+    [Authorize]
     public async Task<IActionResult> GetDashboardSummary()
     {
-        var total = await _context.Concerns.CountAsync();
+        var counts = await _context.Concerns
+            .AsNoTracking()
+            .GroupBy(c => c.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Status, x => x.Count);
 
-        var pending = await _context.Concerns
-            .CountAsync(c => c.Status == "Pending");
-
-        var underReview = await _context.Concerns
-            .CountAsync(c => c.Status == "Under Review");
-
-        var resolved = await _context.Concerns
-            .CountAsync(c => c.Status == "Resolved");
-
-        var rejected = await _context.Concerns
-            .CountAsync(c => c.Status == "Rejected");
+        int CountOf(string status) => counts.GetValueOrDefault(status);
 
         var recentSubmissions = await (
-            from concern in _context.Concerns
-            join category in _context.Categories
+            from concern in _context.Concerns.AsNoTracking()
+            join category in _context.Categories.AsNoTracking()
                 on concern.CategoryId equals category.Id
             orderby concern.SubmittedAt descending
             select new
@@ -226,168 +255,119 @@ public class ConcernsController : ControllerBase
                 status = concern.Status,
                 submittedAt = concern.SubmittedAt
             }
-        )
-        .Take(5)
-        .ToListAsync();
+        ).Take(5).ToListAsync();
 
         return Ok(new
         {
-            total,
-            pending,
-            underReview,
-            resolved,
-            rejected,
+            total = counts.Values.Sum(),
+            pending = CountOf(ConcernStatus.Pending),
+            underReview = CountOf(ConcernStatus.UnderReview),
+            resolved = CountOf(ConcernStatus.Resolved),
+            rejected = CountOf(ConcernStatus.Rejected),
             recentSubmissions
         });
     }
 
     // PUT: api/concerns/{trackingCode}
-    // UPDATE CONCERN STATUS AND ADMIN RESPONSE
     [HttpPut("{trackingCode}")]
+    [Authorize]
     public async Task<IActionResult> UpdateConcern(
         string trackingCode,
         [FromBody] UpdateConcernRequest request)
     {
-        if (string.IsNullOrWhiteSpace(trackingCode))
-            return BadRequest("Tracking code is required.");
+        var code = TrackingCode.Normalize(trackingCode);
 
-        var code = trackingCode.Trim().ToUpper();
+        if (!TrackingCode.IsValid(code))
+            return Error("Invalid tracking code.");
 
-        var concern = await _context.Concerns
-            .FirstOrDefaultAsync(c => c.TrackingCode == code);
+        var newStatus = request.Status?.Trim() ?? string.Empty;
+        var newResponse = request.AdminResponse?.Trim() ?? string.Empty;
 
-        if (concern == null)
-            return NotFound("Concern not found.");
+        if (!ConcernStatus.All.Contains(newStatus))
+            return Error("Invalid concern status.");
 
-        var allowedStatuses = new[]
-        {
-            "Pending",
-            "Under Review",
-            "Resolved",
-            "Rejected"
-        };
+        if (newResponse.Length > AdminResponseMax)
+            return Error($"Admin response must not exceed {AdminResponseMax} characters.");
 
-        if (string.IsNullOrWhiteSpace(request.Status) ||
-            !allowedStatuses.Contains(request.Status.Trim()))
-        {
-            return BadRequest("Invalid concern status.");
-        }
+        var concern = await _context.Concerns.FirstOrDefaultAsync(c => c.TrackingCode == code);
 
-        if (request.AdminResponse?.Trim().Length > 2000)
-            return BadRequest("Admin response must not exceed 2000 characters.");
-
-        var newStatus = request.Status.Trim();
-        var newResponse = request.AdminResponse?.Trim() ?? "";
+        if (concern is null)
+            return NotFound(new { message = "Concern not found." });
 
         var oldStatus = concern.Status;
         var now = DateTime.UtcNow;
+        var adminId = User.GetAdminId();
 
-        await using var transaction =
-            await _context.Database.BeginTransactionAsync();
-
-        try
+        await using (var transaction = await _context.Database.BeginTransactionAsync())
         {
             concern.Status = newStatus;
-            concern.AdminResponse = string.IsNullOrWhiteSpace(newResponse)
-                ? null
-                : newResponse;
+            concern.AdminResponse = newResponse.Length == 0 ? null : newResponse;
             concern.UpdatedAt = now;
 
             if (oldStatus != newStatus)
             {
-                var history = new ConcernStatusHistory
+                _context.ConcernStatusHistories.Add(new ConcernStatusHistory
                 {
                     ConcernId = concern.Id,
                     Status = newStatus,
                     Note = "Concern status updated by administrator.",
-                    ChangedByAdminId = null,
+                    ChangedByAdminId = adminId,
                     ChangedAt = now
-                };
-
-                _context.ConcernStatusHistories.Add(history);
+                });
             }
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
-
-            return Ok(new
-            {
-                message = "Concern updated successfully.",
-                trackingCode = concern.TrackingCode,
-                status = concern.Status,
-                adminResponse = concern.AdminResponse ?? "",
-                updatedAt = concern.UpdatedAt
-            });
         }
-        catch (Exception)
-        {
-            await transaction.RollbackAsync();
 
-            return StatusCode(
-                500,
-                "Unable to update concern. Please try again."
-            );
-        }
-    }
+        _logger.LogInformation("Admin {AdminId} updated concern {TrackingCode}: {OldStatus} -> {NewStatus}.",
+            adminId, concern.TrackingCode, oldStatus, newStatus);
 
-    // GET: api/concerns/{trackingCode}
-    // TRACK CONCERN
-    [HttpGet("{trackingCode}")]
-    public async Task<IActionResult> GetConcernByTrackingCode(
-        string trackingCode)
-    {
-        if (string.IsNullOrWhiteSpace(trackingCode))
-            return BadRequest("Tracking code is required.");
-
-        var code = trackingCode.Trim().ToUpper();
-
-        var concern = await _context.Concerns
-            .FirstOrDefaultAsync(c =>
-                c.TrackingCode == code);
-
-        if (concern == null)
-            return NotFound("Concern not found.");
-
-        var category = await _context.Categories
-            .FirstOrDefaultAsync(c =>
-                c.Id == concern.CategoryId);
-
-        var history = await _context.ConcernStatusHistories
-            .Where(h => h.ConcernId == concern.Id)
-            .OrderBy(h => h.ChangedAt)
-            .Select(h => new
-            {
-                status = h.Status,
-                date = h.ChangedAt,
-                note = h.Note
-            })
-            .ToListAsync();
+        await NotifyAsync(concern.TrackingCode, concern.Status);
 
         return Ok(new
         {
+            message = "Concern updated successfully.",
             trackingCode = concern.TrackingCode,
-            category = category != null ? category.Name : "Unknown",
-            subject = concern.Subject,
-            description = concern.Description,
-            submittedAt = concern.SubmittedAt,
             status = concern.Status,
-            adminResponse = concern.AdminResponse ?? "",
-            statusHistory = history
+            adminResponse = concern.AdminResponse ?? string.Empty,
+            updatedAt = concern.UpdatedAt
         });
+    }
+
+    // ---- Helpers --------------------------------------------------------------
+
+    private BadRequestObjectResult Error(string message) => BadRequest(new { message });
+
+    // A SignalR failure must never fail the request: the change is already saved.
+    private async Task NotifyAsync(string trackingCode, string status)
+    {
+        try
+        {
+            var payload = new { trackingCode, status };
+
+            await _hub.Clients.Group(ConcernsHub.AdminsGroup)
+                .SendAsync("ConcernsChanged", payload);
+
+            await _hub.Clients.Group(ConcernsHub.GroupFor(trackingCode))
+                .SendAsync("ConcernUpdated", payload);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send SignalR notification for {TrackingCode}.", trackingCode);
+        }
     }
 }
 
-// SUBMIT REQUEST MODEL
 public class SubmitConcernRequest
 {
-    public string Category { get; set; } = string.Empty;
-    public string Subject { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
+    public string? Category { get; set; }
+    public string? Subject { get; set; }
+    public string? Description { get; set; }
 }
 
-// UPDATE REQUEST MODEL
 public class UpdateConcernRequest
 {
-    public string Status { get; set; } = string.Empty;
+    public string? Status { get; set; }
     public string? AdminResponse { get; set; }
 }

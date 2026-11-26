@@ -7,12 +7,18 @@ import {
 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import {
   ConcernService,
   AdminConcern
 } from '../../services/concern';
+import { AuthService } from '../../services/auth';
+import { getErrorMessage } from '../../utils/http-error';
+import { DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { debounceTime } from 'rxjs';
+import { RealtimeService } from '../../services/realtime';
 
 @Component({
   selector: 'app-manage-concerns',
@@ -22,6 +28,9 @@ import {
   styleUrl: './manage-concerns.css'
 })
 export class ManageConcerns implements OnInit {
+
+  private auth = inject(AuthService);
+  private router = inject(Router);
 
   concerns: AdminConcern[] = [];
 
@@ -36,6 +45,9 @@ export class ManageConcerns implements OnInit {
   isLoading = false;
   isSaving = false;
 
+  private realtime = inject(RealtimeService);
+  private destroyRef = inject(DestroyRef);
+
   constructor(
     private concernService: ConcernService,
     private cdr: ChangeDetectorRef
@@ -43,6 +55,13 @@ export class ManageConcerns implements OnInit {
 
   ngOnInit(): void {
     this.loadConcerns();
+
+    // Refresh automatically when concerns change (SignalR)
+    this.realtime.concernsChanged$
+      .pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.loadConcerns());
+
+    this.realtime.connect().catch(() => {});
   }
 
   // LOAD ALL CONCERNS FROM DATABASE
@@ -54,20 +73,14 @@ export class ManageConcerns implements OnInit {
         this.concerns = data;
         this.isLoading = false;
 
-        console.log('CONCERNS LOADED:', data);
 
         this.cdr.detectChanges();
       },
       error: error => {
         this.isLoading = false;
 
-        console.error('LOAD CONCERNS ERROR:', error);
 
-        alert(
-          error.error?.message ||
-          error.error ||
-          'Unable to load concerns. Please try again.'
-        );
+        alert(getErrorMessage(error, 'Unable to load concerns. Please try again.'));
 
         this.cdr.detectChanges();
       }
@@ -137,7 +150,6 @@ export class ManageConcerns implements OnInit {
 
       next: response => {
 
-        console.log('CONCERN UPDATED:', response);
 
         this.isSaving = false;
         this.selectedConcern = null;
@@ -153,13 +165,8 @@ export class ManageConcerns implements OnInit {
 
         this.isSaving = false;
 
-        console.error('UPDATE CONCERN ERROR:', error);
 
-        alert(
-          error.error?.message ||
-          error.error ||
-          'Unable to update concern. Please try again.'
-        );
+        alert(getErrorMessage(error, 'Unable to update concern. Please try again.'));
 
         this.cdr.detectChanges();
       }
@@ -185,6 +192,6 @@ export class ManageConcerns implements OnInit {
 
   // LOGOUT
   logout(): void {
-    window.location.href = '/admin-login';
+    this.auth.logout().subscribe(() => this.router.navigate(['/admin-login']));
   }
 }

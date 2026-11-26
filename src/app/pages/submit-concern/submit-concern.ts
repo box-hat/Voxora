@@ -8,6 +8,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CategoryService } from '../../services/category';
+import { getErrorMessage } from '../../utils/http-error';
 import { ConcernService } from '../../services/concern';
 
 interface ConcernCategory {
@@ -62,21 +63,19 @@ export class SubmitConcern implements OnInit {
 
         this.isLoadingCategories = false;
 
-        console.log('Categories loaded:', this.categories);
 
         this.cdr.detectChanges();
       },
 
       error: (error) => {
 
-        console.error('Unable to load categories:', error);
 
         this.categories = [];
         this.isLoadingCategories = false;
 
         this.cdr.detectChanges();
 
-        alert('Unable to load categories. Please check the API.');
+        alert('Unable to load categories. Please try again later.');
       }
 
     });
@@ -107,7 +106,6 @@ export class SubmitConcern implements OnInit {
 
       next: (response) => {
 
-        console.log('CONCERN SAVED TO MYSQL:', response);
 
         this.router.navigate(['/submission-success'], {
           queryParams: {
@@ -119,15 +117,10 @@ export class SubmitConcern implements OnInit {
 
       error: (error) => {
 
-        console.error('SUBMISSION ERROR:', error);
 
         this.isSubmitting = false;
 
-        alert(
-          error.error?.message ||
-          error.error ||
-          'Unable to submit your concern. Please try again.'
-        );
+        alert(getErrorMessage(error, 'Unable to submit your concern. Please try again.'));
 
       }
 

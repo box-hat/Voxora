@@ -1,7 +1,9 @@
-
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+
+import { AuthService } from '../../services/auth';
+import { getErrorMessage } from '../../utils/http-error';
 
 @Component({
   selector: 'app-admin-login',
@@ -10,7 +12,7 @@ import { Router, RouterLink } from '@angular/router';
   templateUrl: './admin-login.html',
   styleUrl: './admin-login.css'
 })
-export class AdminLogin {
+export class AdminLogin implements OnInit {
   username = '';
   password = '';
   showPassword = false;
@@ -18,7 +20,16 @@ export class AdminLogin {
   errorMessage = '';
   isLoading = false;
 
-  constructor(private router: Router) {}
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly cdr = inject(ChangeDetectorRef);
+
+  ngOnInit(): void {
+    if (this.route.snapshot.queryParamMap.get('expired')) {
+      this.errorMessage = 'Your session has expired. Please sign in again.';
+    }
+  }
 
   login(): void {
     this.errorMessage = '';
@@ -28,18 +39,28 @@ export class AdminLogin {
       return;
     }
 
+    if (this.isLoading) return;
     this.isLoading = true;
 
-    // Temporary demo credentials only.
-    // Replace with API authentication before production.
-    if (
-      this.username.trim() === 'admin' &&
-      this.password === 'Voxora@123'
-    ) {
-      this.router.navigate(['/admin-dashboard']);
-    } else {
-      this.errorMessage = 'Invalid username or password.';
-      this.isLoading = false;
-    }
+    this.auth.login(this.username.trim(), this.password, this.rememberMe).subscribe({
+      next: () => {
+        this.password = '';
+        this.router.navigateByUrl(this.safeReturnUrl());
+      },
+      error: error => {
+        this.isLoading = false;
+        this.password = '';
+        this.errorMessage = getErrorMessage(error, 'Unable to sign in. Please try again.');
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  // Only allow returning to an in-app path (no open redirects).
+  private safeReturnUrl(): string {
+    const url = this.route.snapshot.queryParamMap.get('returnUrl') ?? '';
+    return url.startsWith('/') && !url.startsWith('//') && !url.startsWith('/admin-login')
+      ? url
+      : '/admin-dashboard';
   }
 }
