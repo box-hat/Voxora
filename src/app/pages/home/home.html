@@ -1,0 +1,147 @@
+
+<header class="navbar">
+  <a routerLink="/" class="brand">
+    <span class="brand-icon">V</span>
+    <span>VOXORA</span>
+  </a>
+
+  <nav class="nav-links">
+    <a routerLink="/">Home</a>
+    <a routerLink="/submit-concern">Submit Concern</a>
+    <a routerLink="/track-concern">Track Concern</a>
+    <a routerLink="/privacy">Privacy</a>
+  </nav>
+
+  <a routerLink="/admin-login" class="admin-link">Admin Portal ↗</a>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-content">
+      <div class="announcement">
+        <span class="status-dot"></span>
+        STUDENT FEEDBACK PLATFORM
+      </div>
+
+      <h1>
+        Your Voice Matters.<br>
+        <span>Your Identity Remains Private.</span>
+      </h1>
+
+      <p class="hero-description">
+        A safe and confidential platform where students can share
+        their feedback, concerns, and suggestions. Speak freely.
+        Be heard. Make a difference.
+      </p>
+
+      <div class="hero-actions">
+        <a routerLink="/submit-concern" class="btn-primary">
+          Submit a Concern <span>→</span>
+        </a>
+
+        <a routerLink="/track-concern" class="btn-secondary">
+          Track My Concern <span>↗</span>
+        </a>
+      </div>
+
+      <div class="trust-message">
+        <span class="shield-icon">✓</span>
+        No name required. No student ID required.
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="visual-glow"></div>
+
+      <div class="visual-card">
+        <div class="visual-top">
+          <div class="visual-icon">V</div>
+          <div>
+            <strong>Your Voice</strong>
+            <small>Matters to us</small>
+          </div>
+          <span class="secure-badge">● Secure</span>
+        </div>
+
+        <div class="visual-line"></div>
+
+        <div class="message-icon">“</div>
+        <h3>Every voice deserves to be heard.</h3>
+        <p>
+          Share your thoughts and help create a better
+          student community.
+        </p>
+
+        <div class="anonymous-label">
+          <span>✓</span> Anonymous Submission
+        </div>
+      </div>
+
+      <div class="floating-card">
+        <span class="floating-check">✓</span>
+        <div>
+          <strong>Your privacy is protected</strong>
+          <small>Share with confidence</small>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="section-heading">
+      <span class="eyebrow">HOW VOXORA WORKS</span>
+      <h2>Your Voice. Your Choice.</h2>
+      <p>Simple, secure, and designed with students in mind.</p>
+    </div>
+
+    <div class="feature-grid">
+      <article class="feature-card">
+        <div class="feature-icon teal">✎</div>
+        <h3>Submit Feedback</h3>
+        <p>
+          Share concerns, suggestions, and experiences
+          through a simple anonymous form.
+        </p>
+        <a routerLink="/submit-concern">Submit now →</a>
+      </article>
+
+      <article class="feature-card">
+        <div class="feature-icon blue">⌕</div>
+        <h3>Track Your Concern</h3>
+        <p>
+          Use your tracking code to check the progress
+          of your submitted concern.
+        </p>
+        <a routerLink="/track-concern">Track submission →</a>
+      </article>
+
+      <article class="feature-card">
+        <div class="feature-icon purple">♧</div>
+        <h3>Privacy First</h3>
+        <p>
+          Your identity is not requested in the
+          anonymous submission form.
+        </p>
+        <a routerLink="/privacy">Learn about privacy →</a>
+      </article>
+    </div>
+  </section>
+
+  <section class="privacy-banner">
+    <div class="privacy-symbol">♧</div>
+    <div>
+      <h2>Your Identity. Your Privacy.</h2>
+      <p>
+        VOXORA is designed to accept anonymous feedback.
+        Avoid including personal identifying details in your message.
+      </p>
+    </div>
+    <a routerLink="/privacy">Our Privacy Policy →</a>
+  </section>
+</main>
+
+<footer class="footer">
+  <a routerLink="/" class="footer-brand">VOXORA</a>
+  <p>Your Voice Matters. Your Identity Remains Private.</p>
+  <span>© {{ currentYear }} VOXORA. All rights reserved.</span>
+</footer>

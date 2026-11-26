@@ -1,0 +1,195 @@
+
+<div class="dashboard-layout">
+
+  <aside class="sidebar">
+    <a routerLink="/" class="brand">
+      <span class="brand-icon">V</span>
+      <span>VOXORA</span>
+    </a>
+
+    <div class="sidebar-label">ADMIN MENU</div>
+
+    <nav class="sidebar-nav">
+      <a routerLink="/admin-dashboard" routerLinkActive="active">
+        <span>▦</span> Dashboard
+      </a>
+      <a routerLink="/manage-concerns">
+        <span>☷</span> Manage Concerns
+      </a>
+      <a routerLink="/categories">
+        <span>▤</span> Categories
+      </a>
+      <a routerLink="/reports">
+        <span>▥</span> Reports & Analytics
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="admin-profile">
+        <div class="profile-avatar">A</div>
+        <div>
+          <strong>Administrator</strong>
+          <small>System Admin</small>
+        </div>
+      </div>
+
+      <button class="logout-button" (click)="logout()">
+        ↪ Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+
+    <header class="topbar">
+      <div>
+        <h1>Dashboard</h1>
+        <p>Welcome back! Here's what's happening with VOXORA.</p>
+      </div>
+
+      <a routerLink="/" class="portal-link">← Student Portal</a>
+    </header>
+
+    <section class="welcome-banner">
+      <div>
+        <span class="eyebrow">VOXORA ADMINISTRATION</span>
+        <h2>Manage student voices with confidence.</h2>
+        <p>Review concerns, monitor submissions, and help create a better campus environment.</p>
+      </div>
+      <div class="banner-icon">V</div>
+    </section>
+
+    <section class="stats-grid">
+
+      <article class="stat-card">
+        <div class="stat-top">
+          <span>Total Concerns</span>
+          <span class="stat-icon teal">▤</span>
+        </div>
+        <h2>{{ totalConcerns }}</h2>
+        <small>All submitted concerns</small>
+      </article>
+
+      <article class="stat-card">
+        <div class="stat-top">
+          <span>Pending</span>
+          <span class="stat-icon orange">◷</span>
+        </div>
+        <h2>{{ pendingConcerns }}</h2>
+        <small>Waiting for review</small>
+      </article>
+
+      <article class="stat-card">
+        <div class="stat-top">
+          <span>Under Review</span>
+          <span class="stat-icon blue">◉</span>
+        </div>
+        <h2>{{ underReviewConcerns }}</h2>
+        <small>Currently being reviewed</small>
+      </article>
+
+      <article class="stat-card">
+        <div class="stat-top">
+          <span>Resolved</span>
+          <span class="stat-icon green">✓</span>
+        </div>
+        <h2>{{ resolvedConcerns }}</h2>
+        <small>Successfully resolved</small>
+      </article>
+
+    </section>
+
+    <section class="content-grid">
+
+      <article class="panel recent-panel">
+        <div class="panel-heading">
+          <div>
+            <h3>Recent Submissions</h3>
+            <p>Latest concerns submitted by students</p>
+          </div>
+          <a routerLink="/manage-concerns">View All →</a>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>TRACKING CODE</th>
+                <th>SUBJECT</th>
+                <th>CATEGORY</th>
+                <th>DATE</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              @for (concern of recentConcerns; track concern.trackingCode) {
+                <tr>
+                  <td class="tracking-code">{{ concern.trackingCode }}</td>
+                  <td class="subject-cell">{{ concern.subject }}</td>
+                  <td>{{ concern.category }}</td>
+                  <td>{{ formatDate(concern.submittedAt) }}</td>
+                  <td>
+                    <span class="status-badge" [ngClass]="getStatusClass(concern.status)">
+                      {{ concern.status }}
+                    </span>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="5" class="empty-state">
+                    <div class="empty-icon">▤</div>
+                    <strong>No submissions yet</strong>
+                    <p>Student concerns will appear here once submitted.</p>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel analytics-panel">
+        <div class="panel-heading">
+          <div>
+            <h3>Concerns by Category</h3>
+            <p>Distribution of submitted concerns</p>
+          </div>
+        </div>
+
+        @if (categoryStats.length > 0) {
+          <div class="category-list">
+            @for (item of categoryStats; track item.name) {
+              <div class="category-item">
+                <div class="category-info">
+                  <span>{{ item.name }}</span>
+                  <strong>{{ item.count }}</strong>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" [style.width.%]="item.percentage"></div>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="empty-analytics">
+            <span>▥</span>
+            <p>Category analytics will appear here when students submit concerns.</p>
+          </div>
+        }
+
+        <div class="analytics-footer">
+          <span>Rejected Concerns</span>
+          <strong>{{ rejectedConcerns }}</strong>
+        </div>
+      </article>
+
+    </section>
+
+    <footer class="dashboard-footer">
+      <span>© 2026 VOXORA — Anonymous Feedback and Concern Management System</span>
+      <span>Your Voice Matters. Your Identity Remains Private.</span>
+    </footer>
+
+  </main>
+</div>

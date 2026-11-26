@@ -1,0 +1,229 @@
+
+<div class="dashboard-layout">
+
+  <aside class="sidebar">
+    <a routerLink="/" class="brand">
+      <span class="brand-icon">V</span>
+      <span>VOXORA</span>
+    </a>
+
+    <div class="sidebar-label">ADMIN MENU</div>
+
+    <nav class="sidebar-nav">
+      <a routerLink="/admin-dashboard">▦ Dashboard</a>
+      <a routerLink="/manage-concerns">☷ Manage Concerns</a>
+      <a routerLink="/categories" class="active">▤ Categories</a>
+      <a routerLink="/reports">▥ Reports & Analytics</a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="admin-profile">
+        <div class="profile-avatar">A</div>
+        <div>
+          <strong>Administrator</strong>
+          <small>System Admin</small>
+        </div>
+      </div>
+
+      <button class="logout-button" (click)="logout()">
+        ↪ Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+
+    <header class="topbar">
+      <div>
+        <h1>Categories</h1>
+        <p>Organize the types of concerns submitted by students.</p>
+      </div>
+
+      <a routerLink="/admin-dashboard" class="portal-link">
+        ← Dashboard
+      </a>
+    </header>
+
+    <section class="summary-row">
+      <div class="summary-card">
+        <div>
+          <span class="summary-label">TOTAL CATEGORIES</span>
+          <h2>{{ categories.length }}</h2>
+          <p>Available concern categories</p>
+        </div>
+
+        <div class="summary-icon">▤</div>
+      </div>
+
+      <button class="add-button" (click)="openAddModal()">
+        <span>＋</span> Add New Category
+      </button>
+    </section>
+
+    <section class="categories-panel">
+
+      <div class="panel-heading">
+        <div>
+          <h3>All Categories</h3>
+          <p>Manage the categories available in the student portal.</p>
+        </div>
+      </div>
+
+      <div class="search-box">
+        <span>⌕</span>
+        <input
+          type="text"
+          placeholder="Search categories..."
+          [(ngModel)]="searchTerm"
+        />
+      </div>
+
+      <div class="categories-grid">
+
+        @for (category of filteredCategories; track category.id) {
+          <article class="category-card">
+
+            <div class="category-card-top">
+              <div class="category-icon">▤</div>
+
+              <div class="category-actions">
+                <button
+                  class="edit-button"
+                  type="button"
+                  title="Edit category"
+                  (click)="openEditModal(category)"
+                >
+                  ✎
+                </button>
+
+                <button
+                  class="delete-button"
+                  type="button"
+                  title="Delete category"
+                  (click)="deleteCategory(category)"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <h3>{{ category.name }}</h3>
+            <p>{{ category.description }}</p>
+
+            <div class="category-footer">
+              <span>Category ID</span>
+              <strong>#{{ category.id }}</strong>
+            </div>
+
+          </article>
+        } @empty {
+          <div class="empty-state">
+            <div class="empty-icon">▤</div>
+            <strong>No categories found</strong>
+            <p>Try another search or add a new category.</p>
+          </div>
+        }
+
+      </div>
+
+      <div class="panel-footer">
+        Showing {{ filteredCategories.length }} of {{ categories.length }} categories
+      </div>
+
+    </section>
+
+  </main>
+</div>
+
+@if (showModal) {
+  <div class="modal-backdrop" (click)="closeModal()">
+
+    <section
+      class="category-modal"
+      (click)="$event.stopPropagation()"
+    >
+
+      <div class="modal-heading">
+        <div>
+          <span class="modal-eyebrow">CATEGORY MANAGEMENT</span>
+
+          <h2>
+            {{ isEditing ? 'Edit Category' : 'Add New Category' }}
+          </h2>
+
+          <p>
+            {{ isEditing
+              ? 'Update the category information.'
+              : 'Create a category for student concerns.' }}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="close-button"
+          (click)="closeModal()"
+        >
+          ×
+        </button>
+      </div>
+
+      <form (ngSubmit)="saveCategory()">
+
+        <div class="form-group">
+          <label for="categoryName">Category Name</label>
+
+          <input
+            id="categoryName"
+            type="text"
+            name="categoryName"
+            [(ngModel)]="formName"
+            placeholder="Enter category name"
+            maxlength="60"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="categoryDescription">Description</label>
+
+          <textarea
+            id="categoryDescription"
+            name="categoryDescription"
+            [(ngModel)]="formDescription"
+            placeholder="Describe this category..."
+            rows="4"
+            maxlength="250"
+            required
+          ></textarea>
+        </div>
+
+        <div class="modal-actions">
+
+          <button
+            type="button"
+            class="cancel-button"
+            (click)="closeModal()"
+            [disabled]="isSaving"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            class="save-button"
+            [disabled]="isSaving"
+          >
+            {{
+              isSaving
+                ? 'Saving...'
+                : (isEditing ? 'Save Changes' : 'Add Category')
+            }}
+          </button>
+
+        </div>
+
+      </form>
+
+    </section>
+  </div>
+}

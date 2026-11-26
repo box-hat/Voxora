@@ -1,0 +1,221 @@
+
+<header class="navbar">
+  <a routerLink="/" class="brand">
+    <span class="brand-icon">V</span>
+    <span>VOXORA</span>
+  </a>
+
+  <nav class="nav-links">
+    <a routerLink="/">Home</a>
+    <a routerLink="/submit-concern" class="active">Submit Concern</a>
+    <a routerLink="/track-concern">Track Concern</a>
+    <a routerLink="/privacy">Privacy</a>
+  </nav>
+
+  <a routerLink="/admin-login" class="admin-link">Admin Portal ↗</a>
+</header>
+
+<main class="page-container">
+  <div class="page-heading">
+    <a routerLink="/" class="back-link">← Back to Home</a>
+
+    <span class="eyebrow">STUDENT FEEDBACK PLATFORM</span>
+    <h1>Submit Your <span>Concern</span></h1>
+
+    <p>
+      Your voice matters. Share your concerns and help us
+      create a better student community.
+    </p>
+  </div>
+
+  <div class="form-layout">
+    <section class="form-card">
+      <div class="form-header">
+        <div>
+          <h2>Concern Submission Form</h2>
+          <p>Fill in the details below to submit your concern.</p>
+        </div>
+        <span class="required-label">* Required fields</span>
+      </div>
+
+      <div class="anonymous-notice">
+        <div class="notice-icon">✓</div>
+        <div>
+          <strong>Anonymous Submission</strong>
+          <p>
+            We do not ask for your name or student ID.
+            Please avoid including identifying information
+            in your message.
+          </p>
+        </div>
+      </div>
+
+      <form #concernForm="ngForm"
+            (ngSubmit)="submitConcern()">
+
+        <!-- DYNAMIC CATEGORY DROPDOWN -->
+        <div class="form-group">
+          <label for="category">
+            Concern Category <span>*</span>
+          </label>
+
+          <select
+            id="category"
+            name="category"
+            [(ngModel)]="category"
+            required
+            #categoryField="ngModel">
+
+            <option value="" disabled>Select a category</option>
+
+            @for (item of categories; track item.id) {
+              <option [value]="item.name">
+                {{ item.name }}
+              </option>
+            }
+
+          </select>
+
+          @if (categoryField.invalid && categoryField.touched) {
+            <small class="error-message">
+              Please select a category.
+            </small>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="subject">
+            Subject <span>*</span>
+          </label>
+
+          <input
+            type="text"
+            id="subject"
+            name="subject"
+            [(ngModel)]="subject"
+            required
+            minlength="5"
+            maxlength="100"
+            placeholder="Enter a short title for your concern"
+            #subjectField="ngModel">
+
+          <div class="field-footer">
+            @if (subjectField.invalid && subjectField.touched) {
+              <small class="error-message">
+                Subject must contain at least 5 characters.
+              </small>
+            } @else {
+              <small>Provide a clear and specific subject.</small>
+            }
+
+            <small>{{ subject.length }}/100</small>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="description">
+            Description <span>*</span>
+          </label>
+
+          <textarea
+            id="description"
+            name="description"
+            [(ngModel)]="description"
+            required
+            minlength="10"
+            maxlength="2000"
+            rows="7"
+            placeholder="Describe your concern in detail. Include relevant information that can help us understand and address the issue..."
+            #descriptionField="ngModel">
+          </textarea>
+
+          <div class="field-footer">
+            @if (descriptionField.invalid && descriptionField.touched) {
+              <small class="error-message">
+                Description must contain at least 10 characters.
+              </small>
+            } @else {
+              <small>Be clear, respectful, and specific.</small>
+            }
+
+            <small>{{ description.length }}/2000</small>
+          </div>
+        </div>
+
+        <div class="form-disclaimer">
+          <span>ⓘ</span>
+          <p>
+            By submitting this form, you confirm that the
+            information provided is accurate to the best
+            of your knowledge.
+          </p>
+        </div>
+
+        <button
+          type="submit"
+          class="submit-button"
+          [disabled]="concernForm.invalid || isSubmitting">
+
+          {{ isSubmitting ? 'Submitting...' : 'Submit Concern' }}
+          <span>→</span>
+        </button>
+
+        <p class="form-footer-note">
+          Your submission will receive a tracking code.
+          Keep it safe so you can check its status later.
+        </p>
+
+      </form>
+    </section>
+
+    <aside class="side-panel">
+      <div class="side-icon">♧</div>
+      <h2>Your Voice<br><span>Matters.</span></h2>
+
+      <p>
+        Every concern deserves attention. Your feedback
+        helps improve the student experience.
+      </p>
+
+      <div class="side-divider"></div>
+
+      <div class="side-feature">
+        <span>✓</span>
+        <div>
+          <strong>Anonymous</strong>
+          <small>No name or student ID requested</small>
+        </div>
+      </div>
+
+      <div class="side-feature">
+        <span>✓</span>
+        <div>
+          <strong>Confidential</strong>
+          <small>Designed with privacy in mind</small>
+        </div>
+      </div>
+
+      <div class="side-feature">
+        <span>✓</span>
+        <div>
+          <strong>Trackable</strong>
+          <small>Receive a unique tracking code</small>
+        </div>
+      </div>
+
+      <div class="side-reminder">
+        <strong>Helpful Reminder</strong>
+        <p>
+          Do not include your full name, student number,
+          passwords, or other personal details in your concern.
+        </p>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<footer class="footer">
+  <a routerLink="/" class="footer-brand">VOXORA</a>
+  <p>Your Voice Matters. Your Identity Remains Private.</p>
+  <span>© 2026 VOXORA. All rights reserved.</span>
+</footer>

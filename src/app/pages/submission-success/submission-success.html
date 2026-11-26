@@ -1,0 +1,87 @@
+
+<header class="navbar">
+  <a routerLink="/" class="brand">
+    <span class="brand-icon">V</span>
+    <span>VOXORA</span>
+  </a>
+
+  <nav class="nav-links">
+    <a routerLink="/">Home</a>
+    <a routerLink="/submit-concern">Submit Concern</a>
+    <a routerLink="/track-concern">Track Concern</a>
+    <a routerLink="/privacy">Privacy</a>
+  </nav>
+
+  <a routerLink="/admin-login" class="admin-link">Admin Portal ↗</a>
+</header>
+
+<main class="success-container">
+  <section class="success-card">
+
+    <div class="success-icon">
+      <span>✓</span>
+    </div>
+
+    <span class="success-label">SUBMISSION RECEIVED</span>
+
+    <h1>Your Voice Has Been <span>Heard!</span></h1>
+
+    <p class="success-description">
+      Thank you for sharing your concern with VOXORA.
+      Your submission has been processed in this demo.
+    </p>
+
+    <div class="tracking-box">
+      <span class="tracking-label">YOUR TRACKING CODE</span>
+
+      <div class="tracking-code">
+        {{ trackingCode || 'No tracking code found' }}
+      </div>
+
+      <button
+        type="button"
+        class="copy-button"
+        [disabled]="!trackingCode"
+        (click)="copyTrackingCode()">
+        {{ copied ? '✓ Copied!' : '▣ Copy Tracking Code' }}
+      </button>
+    </div>
+
+    <div class="important-notice">
+      <span class="notice-icon">!</span>
+      <div>
+        <strong>Keep your tracking code safe.</strong>
+        <p>
+          You will need this code to check the status of
+          your concern. VOXORA does not ask for your name
+          or student ID to track this submission.
+        </p>
+      </div>
+    </div>
+
+    <div class="success-actions">
+      <a
+        routerLink="/track-concern"
+        [queryParams]="{ code: trackingCode }"
+        class="primary-button">
+        Track My Concern →
+      </a>
+
+      <a routerLink="/" class="secondary-button">
+        Back to Homepage
+      </a>
+    </div>
+
+    <p class="privacy-note">
+      Your voice matters. Thank you for helping improve
+      the student community.
+    </p>
+
+  </section>
+</main>
+
+<footer class="footer">
+  <a routerLink="/" class="footer-brand">VOXORA</a>
+  <p>Your Voice Matters. Your Identity Remains Private.</p>
+  <span>© 2026 VOXORA. All rights reserved.</span>
+</footer>

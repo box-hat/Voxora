@@ -1,0 +1,193 @@
+
+<div class="dashboard-layout">
+
+  <aside class="sidebar no-print">
+    <a routerLink="/" class="brand">
+      <span class="brand-icon">V</span>
+      <span>VOXORA</span>
+    </a>
+
+    <div class="sidebar-label">ADMIN MENU</div>
+
+    <nav class="sidebar-nav">
+      <a routerLink="/admin-dashboard">▦ Dashboard</a>
+      <a routerLink="/manage-concerns">☷ Manage Concerns</a>
+      <a routerLink="/categories">▤ Categories</a>
+      <a routerLink="/reports" class="active">▥ Reports & Analytics</a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="admin-profile">
+        <div class="profile-avatar">A</div>
+        <div>
+          <strong>Administrator</strong>
+          <small>System Admin</small>
+        </div>
+      </div>
+
+      <button class="logout-button" (click)="logout()">
+        ↪ Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+
+    <header class="topbar no-print">
+      <div>
+        <h1>Reports & Analytics</h1>
+        <p>Monitor concern submissions and review system statistics.</p>
+      </div>
+
+      <a routerLink="/admin-dashboard" class="portal-link">
+        ← Dashboard
+      </a>
+    </header>
+
+    <section class="report-heading">
+      <div>
+        <span class="eyebrow">VOXORA SYSTEM REPORT</span>
+        <h2>Concern Overview</h2>
+        <p>Summary of all anonymous student submissions.</p>
+      </div>
+
+      <div class="report-actions no-print">
+        <button class="print-button" (click)="printReport()">
+          Print Report
+        </button>
+        <button class="export-button" (click)="exportCSV()">
+          ↓ Export CSV
+        </button>
+      </div>
+    </section>
+
+    @if (isLoading) {
+      <p class="report-message">Loading report data from the database…</p>
+    } @else if (loadError) {
+      <p class="report-message error" role="alert">{{ loadError }}</p>
+    }
+
+    <section class="analytics-grid">
+
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <h3>Concerns by Status</h3>
+            <p>Breakdown of current concern statuses.</p>
+          </div>
+        </div>
+
+        <div class="status-list">
+          @for (item of statusStats; track item.name) {
+            <div class="status-item">
+              <div class="status-info">
+                <span>
+                  <i class="status-dot" [ngClass]="item.className"></i>
+                  {{ item.name }}
+                </span>
+                <strong>{{ item.count }} ({{ item.percentage | number:'1.0-1' }}%)</strong>
+              </div>
+
+              <div class="progress-track">
+                <div
+                  class="progress-fill"
+                  [ngClass]="item.className"
+                  [style.width.%]="item.percentage"
+                ></div>
+              </div>
+            </div>
+          }
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <h3>Concerns by Category</h3>
+            <p>Number of submissions under each category.</p>
+          </div>
+        </div>
+
+        @if (categoryStats.length > 0) {
+          <div class="category-list">
+            @for (item of categoryStats; track item.name) {
+              <div class="category-item">
+                <div class="category-info">
+                  <span>{{ item.name }}</span>
+                  <strong>{{ item.count }}</strong>
+                </div>
+
+                <div class="progress-track">
+                  <div
+                    class="progress-fill category-fill"
+                    [style.width.%]="item.percentage"
+                  ></div>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="empty-state">
+            <span>▥</span>
+            <strong>No category data yet</strong>
+            <p>Category statistics will appear after submissions.</p>
+          </div>
+        }
+      </article>
+
+    </section>
+
+    <section class="panel recent-panel">
+      <div class="panel-heading">
+        <div>
+          <h3>Recent Submission Activity</h3>
+          <p>Latest 10 concerns recorded in the system.</p>
+        </div>
+        <span class="record-count">{{ recentConcerns.length }} Records</span>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>TRACKING CODE</th>
+              <th>SUBJECT</th>
+              <th>CATEGORY</th>
+              <th>DATE SUBMITTED</th>
+              <th>STATUS</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            @for (concern of recentConcerns; track concern.trackingCode) {
+              <tr>
+                <td class="tracking-code">{{ concern.trackingCode }}</td>
+                <td class="subject-cell">{{ concern.subject }}</td>
+                <td>{{ concern.category }}</td>
+                <td>{{ formatDate(concern.submittedAt) }}</td>
+                <td>
+                  <span class="status-badge" [ngClass]="concern.status.toLowerCase().replace(' ', '-')">
+                    {{ concern.status }}
+                  </span>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="empty-table">
+                  <strong>No submissions available</strong>
+                  <p>Reports will appear here when students submit concerns.</p>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="report-footer">
+      <span>© 2026 VOXORA — Anonymous Feedback and Concern Management System</span>
+      <span>Generated on {{ today | date:'longDate' }}</span>
+    </footer>
+
+  </main>
+</div>

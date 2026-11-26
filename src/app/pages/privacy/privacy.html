@@ -1,0 +1,133 @@
+
+<header class="navbar">
+  <a routerLink="/" class="brand">
+    <span class="brand-icon">V</span>
+    <span>VOXORA</span>
+  </a>
+
+  <nav class="nav-links">
+    <a routerLink="/">Home</a>
+    <a routerLink="/submit-concern">Submit Concern</a>
+    <a routerLink="/track-concern">Track Concern</a>
+    <a routerLink="/privacy" class="active">Privacy</a>
+  </nav>
+
+  <a routerLink="/admin-login" class="admin-link">Admin Portal ↗</a>
+</header>
+
+<main class="privacy-container">
+
+  <section class="hero">
+    <span class="eyebrow">YOUR PRIVACY MATTERS</span>
+    <h1>Your Privacy. <span>Your Voice.</span></h1>
+    <p>
+      VOXORA is designed to give students a platform to
+      express their concerns while limiting the personal
+      information they need to provide.
+    </p>
+
+    <div class="privacy-badge">
+      <span>✓</span>
+      Privacy and Data Protection
+    </div>
+  </section>
+
+  <section class="privacy-content">
+
+    <div class="section-heading">
+      <span class="eyebrow">PRIVACY INFORMATION</span>
+      <h2>How We Handle Your Information</h2>
+      <p>
+        Learn what information the system stores and how
+        your submitted concerns are handled.
+      </p>
+    </div>
+
+    <div class="privacy-grid">
+
+      <article class="privacy-card">
+        <div class="card-icon">◉</div>
+        <h3>Anonymous Submission</h3>
+        <p>
+          The submission form does not ask for your full name
+          or student ID. Avoid including personal details
+          in your concern.
+        </p>
+      </article>
+
+      <article class="privacy-card">
+        <div class="card-icon">▤</div>
+        <h3>Information Collected</h3>
+        <p>
+          The system stores your selected category, subject,
+          description, submission date, tracking code, and
+          concern status.
+        </p>
+      </article>
+
+      <article class="privacy-card">
+        <div class="card-icon">⌕</div>
+        <h3>Tracking Code</h3>
+        <p>
+          A unique tracking code is generated after submission.
+          Keep it safe because it is used to check your
+          concern's progress.
+        </p>
+      </article>
+
+      <article class="privacy-card">
+        <div class="card-icon">▣</div>
+        <h3>Data Storage</h3>
+        <p>
+          In the current demonstration version, submissions
+          are stored in your browser's local storage.
+          They are not yet stored in a shared central database.
+        </p>
+      </article>
+
+      <article class="privacy-card">
+        <div class="card-icon">✓</div>
+        <h3>Responsible Use</h3>
+        <p>
+          Submit accurate, respectful, and relevant information.
+          Do not include passwords or unnecessary personal
+          information.
+        </p>
+      </article>
+
+      <article class="privacy-card">
+        <div class="card-icon">!</div>
+        <h3>Important Reminder</h3>
+        <p>
+          Because this is currently a browser-based demonstration,
+          privacy and confidentiality are not guaranteed by
+          server-side security controls.
+        </p>
+      </article>
+
+    </div>
+
+    <section class="privacy-reminder">
+      <div class="reminder-icon">ⓘ</div>
+      <div>
+        <h3>Before You Submit a Concern</h3>
+        <p>
+          Review your message and remove personal details that
+          are not necessary to explain the issue. Keep your
+          tracking code in a safe place.
+        </p>
+        <a routerLink="/submit-concern" class="reminder-link">
+          Submit a Concern →
+        </a>
+      </div>
+    </section>
+
+  </section>
+
+</main>
+
+<footer class="footer">
+  <a routerLink="/" class="footer-brand">VOXORA</a>
+  <p>Your Voice Matters. Your Identity Remains Private.</p>
+  <span>© 2026 VOXORA. All rights reserved.</span>
+</footer>

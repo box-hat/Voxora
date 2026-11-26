@@ -1,0 +1,247 @@
+
+<header class="navbar">
+  <a routerLink="/" class="brand">
+    <span class="brand-icon">V</span>
+    <span>VOXORA</span>
+  </a>
+
+  <nav class="nav-links">
+    <a routerLink="/">Home</a>
+    <a routerLink="/submit-concern">Submit Concern</a>
+    <a routerLink="/track-concern" class="active">Track Concern</a>
+    <a routerLink="/privacy">Privacy</a>
+  </nav>
+
+  <a routerLink="/admin-login" class="admin-link">Admin Portal ↗</a>
+</header>
+
+<main class="page-container">
+
+  <section class="page-heading">
+    <a routerLink="/" class="back-link">← Back to Home</a>
+    <span class="eyebrow">CONCERN TRACKING SYSTEM</span>
+
+    <h1>Track Your <span>Concern</span></h1>
+
+    <p>
+      Enter your tracking code to check the current status
+      and updates of your submitted concern.
+    </p>
+  </section>
+
+  <section class="search-card">
+    <div class="search-icon">⌕</div>
+
+    <h2>Find Your Submission</h2>
+
+    <p>
+      Enter the unique tracking code you received after submission.
+    </p>
+
+    <form (ngSubmit)="searchConcern()">
+
+      <label for="trackingCode">Tracking Code</label>
+
+      <div class="search-input">
+        <input
+          id="trackingCode"
+          name="trackingCode"
+          type="text"
+          [(ngModel)]="trackingCode"
+          placeholder="Example: VX-50844984"
+          required
+        >
+
+        <button type="submit" [disabled]="isSearching">
+          {{ isSearching ? 'Searching...' : 'Track Concern →' }}
+        </button>
+      </div>
+
+    </form>
+
+    <small>Make sure your tracking code is entered correctly.</small>
+  </section>
+
+  <!-- LOADING MESSAGE -->
+  @if (isSearching) {
+    <section class="result-card">
+      <div class="result-icon">⌕</div>
+
+      <h2>Searching...</h2>
+
+      <p>
+        Please wait while we retrieve your concern details.
+      </p>
+    </section>
+  }
+
+  <!-- NOT FOUND MESSAGE -->
+  @if (searched && !concern && !isSearching) {
+    <section class="result-card not-found">
+      <div class="result-icon">!</div>
+
+      <h2>Concern Not Found</h2>
+
+      <p>
+        We couldn't find a submission with that tracking code.
+        Please check your code and try again.
+      </p>
+    </section>
+  }
+
+  <!-- CONCERN DETAILS -->
+  @if (concern; as item) {
+
+    <section class="result-section">
+
+      <div class="result-header">
+
+        <div>
+          <span class="eyebrow">SUBMISSION DETAILS</span>
+
+          <h2>{{ item.subject }}</h2>
+
+          <p>
+            Tracking Code:
+            <strong>{{ item.trackingCode }}</strong>
+          </p>
+        </div>
+
+        <span
+          class="status-badge"
+          [ngClass]="getStatusClass(item.status)"
+        >
+          {{ item.status }}
+        </span>
+
+      </div>
+
+      <div class="details-grid">
+
+        <div class="detail-card">
+          <span>CONCERN CATEGORY</span>
+          <strong>{{ item.category }}</strong>
+        </div>
+
+        <div class="detail-card">
+          <span>DATE SUBMITTED</span>
+          <strong>{{ formatDate(item.submittedAt) }}</strong>
+        </div>
+
+        <div class="detail-card">
+          <span>CURRENT STATUS</span>
+          <strong>{{ item.status }}</strong>
+        </div>
+
+      </div>
+
+      <div class="progress-card">
+
+        <div class="section-title">
+          <h3>Concern Progress</h3>
+          <span>{{ progress }}%</span>
+        </div>
+
+        <div class="progress-track">
+          <div
+            class="progress-fill"
+            [style.width.%]="progress"
+          ></div>
+        </div>
+
+        <div class="progress-labels">
+          <span>Submitted</span>
+          <span>In Progress</span>
+          <span>Completed</span>
+        </div>
+
+      </div>
+
+      <div class="information-card">
+        <h3>Concern Description</h3>
+        <p>{{ item.description }}</p>
+      </div>
+
+      <div class="information-card">
+
+        <h3>Status Timeline</h3>
+
+        <div class="timeline">
+
+          @for (history of item.statusHistory; track $index) {
+
+            <div class="timeline-item">
+
+              <div class="timeline-marker"></div>
+
+              <div class="timeline-content">
+
+                <strong>{{ history.status }}</strong>
+
+                <span>{{ formatDate(history.date) }}</span>
+
+                <p>{{ history.note }}</p>
+
+              </div>
+
+            </div>
+
+          }
+
+        </div>
+
+      </div>
+
+      <div class="information-card response-card">
+
+        <div class="response-icon">✉</div>
+
+        <div>
+          <h3>Administration Response</h3>
+
+          @if (item.adminResponse) {
+            <p>{{ item.adminResponse }}</p>
+          } @else {
+            <p class="no-response">
+              No administration response yet.
+              Please check again later for updates.
+            </p>
+          }
+
+        </div>
+
+      </div>
+
+    </section>
+  }
+
+  <!-- HELP MESSAGE -->
+  @if (!searched && !concern && !isSearching) {
+
+    <section class="help-card">
+
+      <div class="help-icon">i</div>
+
+      <div>
+        <h3>Where can I find my tracking code?</h3>
+
+        <p>
+          Your tracking code is displayed on the confirmation
+          page immediately after submitting a concern.
+          Keep it safe for future reference.
+        </p>
+      </div>
+
+    </section>
+
+  }
+
+</main>
+
+<footer class="footer">
+  <a routerLink="/" class="footer-brand">VOXORA</a>
+
+  <p>Your Voice Matters. Your Identity Remains Private.</p>
+
+  <span>© 2026 VOXORA. All rights reserved.</span>
+</footer>
